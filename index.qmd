@@ -54,7 +54,6 @@ keywords:
 #| message: false
 #| eval: false
 #| label: entrenar_xgb_optuna
-
 # Entrenamiento del modelo 
 # SI SE CORRE ESTA CELDA CAMBIA EL MODELO!!!
 
@@ -424,8 +423,582 @@ La combinación de optimización automática (Optuna) y un algoritmo avanzado de
 
 En conclusión, el modelo XGBoost optimizado se posiciona como la mejor alternativa para estimar turbidez a partir de productos satelitales Sentinel-2, superando ampliamente al modelo lineal tanto en precisión como en capacidad de generalización.
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Documentación
 
 Modelo XGBoost: https://xgboost.ai
 
 Optimazador de hiper parámetro Optuna: https://optuna.org/
+
+
+
+# Modelado con indices espectrales 
+
+**Procesamiento de archivos csv**
+
+Para el procesamiento de los datos se utilizará la librería *pandas* de Python.
+
+## Procesamiento de archivos csv
+
+Para el procesamiento de los datos se utilizará la librería *pandas* de Python.
+
+En el proyecto tenemos dos archivos .csv que contienen los datos:
+
+-base_de_datos_lab.csv → contiene resultados de laboratorio 
+
+-base_de_datos_gis.csv → contiene datos espectrales
+
+```{python}
+#| echo: false
+#| eval: false
+import pandas as pd
+
+#Lectura de datos
+
+df1_lab = pd.read_csv("Input/base_de_datos_lab.csv") # DataFrame de datos de laboratorio.
+df2_gis = pd.read_csv("Input/datos/base_de_datos_gis_sen2cor.csv") # DataFrame de datos espectrales
+
+# Combinamos ambos DataFrame para tener los datos en una única base de datos
+
+df_combinado = pd.merge(df1_lab, df2_gis, on=['latitud', 'longitud','fecha'], how='inner')
+
+# Filtramos las filas que contengas los valores de turbidez
+
+df_turbidez = df_combinado[(df_combinado['param'] == 'turb')]
+
+# Eliminamos las columnas que no nos interesan
+df_turbidez_banda = df_turbidez.drop(columns=['longitud','latitud','punto','fecha','param'])
+
+df_turbidez_banda.head()
+
+# Cambiamos el nombre de la columna "valor" por el de "turbidez
+
+df_turbidez_banda.rename(columns={'valor': 'turbidez'}, inplace=True)
+
+df_turbidez_banda.head()
+
+# Pivotamos tabla
+
+df_final = df_turbidez_banda.pivot_table(
+        index='turbidez',
+        columns='banda',
+        values='reflect',)
+
+
+# Creamos tabla final
+
+#df_final.to_csv("Output/csv/Turbidez-Bandas.csv", index=True)
+```
+
+Los datos útiles a este sitio están ordenanos de la siguiente forma. (Solo se muestran las 5 primeras filas)
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+import pandas as pd
+
+df = pd.read_csv("Output/csv/Turbidez-Bandas.csv")
+
+df.head()
+```
+
+Cálculo de índices espectrales
+
+
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+import numpy as np
+
+df = pd.read_csv("Output/csv/Datos_modelado_indices_espectrales.csv")
+
+# 1. Connvertimos el índice 'turbidez' a una columna normal temporalmente
+df_indices = df.reset_index()
+
+# 2. Cálculo de Índices Espectrales
+
+# NDTI (Índice de Turbidez de Diferencia Normalizada)
+# (Red - Green) / (Red + Green)
+df_indices['NDTI'] = (df_indices['B04'] - df_indices['B03']) / (df_indices['B04'] + df_indices['B03'])
+
+# ITBDN (Índice de Turbidez Baja de Diferencia Normalizada)
+# (B3−B2) / (B3+B2)
+df_indices['ITBDN'] = (df_indices['B03'] - df_indices['B02']) / (df_indices['B03'] + df_indices['B02'])
+
+# NDSSI (Normalized Difference Suspended Sediment Index)
+#(B02 - B08) / (B02 + B08)
+df_indices['NDSSI'] = (df_indices['B02'] - df_indices['B08']) / (df_indices['B02'] + df_indices['B08'])
+
+# WRI (Water Ratio Index)
+#(B03 + B04) / (B08 + B11)
+
+df_indices['WRI'] = (df_indices['B03'] - df_indices['B04']) / (df_indices['B08'] + df_indices['B11'])
+
+# S2WI  (B05 - B12) / (B05 + B12)
+df_indices['S2WI'] = (df_indices['B05'] - df_indices['B12']) / (df_indices['B05'] + df_indices['B12'])
+
+
+
+# 3. Volvemos a dejar la turbidez como índice (opcional, si prefieres mantener tu formato original)
+#df_indices.set_index('turbidez', inplace=True)
+
+# Visualizamos el resultado con las nuevas columnas
+df_indices.head()
+
+
+```
+
+
+# NDTI
+**Gráfico Turbidez vs NDTI**
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Aseguramos que la turbidez esté disponible como columna para el eje X
+df_plot = df_indices.reset_index()
+
+plt.figure(figsize=(4.5, 4.5))
+
+# Graficamos únicamente los puntos en color morado (#9D50A6) 
+plt.scatter(
+    df_plot['turbidez'], 
+    df_plot['NDTI'], 
+    color="#9D50A6", 
+    alpha=0.6, 
+    edgecolors='none',
+    s=40
+)
+
+# Etiquetas de los ejes
+plt.xlabel("Turbidez real (NTU)")
+plt.ylabel("Indice NDTI")
+plt.title("Relación entre Turbidez Real e Índice NDTI")
+
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.tight_layout()
+plt.show()
+
+
+```
+
+**con logaritmo**
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Aseguramos que la turbidez esté disponible como columna para el eje X
+df_plot = df_indices.reset_index()
+
+plt.figure(figsize=(4.5, 4.5))
+
+# 1. Graficamos los puntos en color morado (#9D50A6)
+plt.scatter(
+    df_plot['turbidez'], 
+    df_plot['NDTI'], 
+    color="#9D50A6", 
+    alpha=0.6, 
+    edgecolors='none',
+    s=40
+)
+
+# 2. Cálculo del coeficiente de correlación usando log10(turbidez)
+# Esto evalúa la fuerza de la relación logarítmica/exponencial real
+log_turbidez = np.log(df_plot['turbidez'])
+r_corr = np.corrcoef(log_turbidez, df_plot['NDTI'])[0, 1]
+
+# 3. Cálculo de la línea de tendencia logarítmica: y = a * log10(x) + b
+coef_log = np.polyfit(log_turbidez, df_plot['NDTI'], 1)
+
+# Creamos un espacio logarítmico para que la curva se dibuje suavemente
+x_val = np.logspace(np.log(df_plot['turbidez'].min()), np.log10(df_plot['turbidez'].max()), 100)
+y_val = coef_log[0] * np.log(x_val) + coef_log[1]
+
+# 4. Graficamos la curva de tendencia en color verde (#17A77E)
+plt.plot(
+    x_val, 
+    y_val, 
+    '-', 
+    color="#17A77E", 
+    lw=2
+)
+
+# 5. Forzamos al eje X a usar escala logarítmica base 10
+plt.xscale('log')
+
+# 6. Agregamos el texto de la correlación ajustada
+plt.gca().text(
+    0.05, 0.92, 
+    f'$r$ (log) = {r_corr:.3f}', 
+    transform=plt.gca().transAxes, 
+    fontsize=10, 
+    verticalalignment='top',
+    bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.7, edgecolor='none')
+)
+
+# Etiquetas de los ejes
+plt.xlabel("Turbidez real (NTU) - Escala Log")
+plt.ylabel("Indice NDTI")
+plt.title("Relación Logarítmica: Turbidez vs NDTI")
+
+plt.grid(True, linestyle='--', alpha=0.5, which="both") # "both" muestra rejilla para mayores y menores logarítmicos
+plt.tight_layout()
+plt.show()
+
+```
+
+
+# ITBDN  , no funciona
+Trabajo de Brasil. no funciona este indice
+
+**Gráfico Turbidez vs ITBDN** 
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Aseguramos que la turbidez esté disponible como columna para el eje X
+df_plot = df_indices.reset_index()
+
+plt.figure(figsize=(4.5, 4.5))
+
+# Graficamos únicamente los puntos en color morado (#9D50A6) 
+plt.scatter(
+    df_plot['turbidez'], 
+    df_plot['ITBDN'], 
+    color="#9D50A6", 
+    alpha=0.6, 
+    edgecolors='none',
+    s=40
+)
+
+# Etiquetas de los ejes
+plt.xlabel("Turbidez real (NTU)")
+plt.ylabel("Indice ITBDN")
+plt.title("Relación entre Turbidez Real e Índice ITBDN")
+
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.tight_layout()
+plt.show()
+
+```
+
+Con logaritmo
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Aseguramos que la turbidez esté disponible como columna para el eje X
+df_plot = df_indices.reset_index()
+
+plt.figure(figsize=(4.5, 4.5))
+
+# 1. Graficamos los puntos en color morado (#9D50A6)
+plt.scatter(
+    df_plot['turbidez'], 
+    df_plot['ITBDN'], 
+    color="#9D50A6", 
+    alpha=0.6, 
+    edgecolors='none',
+    s=40
+)
+
+# 2. Cálculo del coeficiente de correlación usando log10(turbidez)
+# Esto evalúa la fuerza de la relación logarítmica/exponencial real
+log_turbidez = np.log(df_plot['turbidez'])
+r_corr = np.corrcoef(log_turbidez, df_plot['ITBDN'])[0, 1]
+
+# 3. Cálculo de la línea de tendencia logarítmica: y = a * log10(x) + b
+coef_log = np.polyfit(log_turbidez, df_plot['ITBDN'], 1)
+
+# Creamos un espacio logarítmico para que la curva se dibuje suavemente
+x_val = np.logspace(np.log(df_plot['turbidez'].min()), np.log10(df_plot['turbidez'].max()), 100)
+y_val = coef_log[0] * np.log(x_val) + coef_log[1]
+
+# 4. Graficamos la curva de tendencia en color verde (#17A77E)
+plt.plot(
+    x_val, 
+    y_val, 
+    '-', 
+    color="#17A77E", 
+    lw=2
+)
+
+# 5. Forzamos al eje X a usar escala logarítmica base 10
+plt.xscale('log')
+
+# 6. Agregamos el texto de la correlación ajustada
+plt.gca().text(
+    0.05, 0.92, 
+    f'$r$ (log) = {r_corr:.3f}', 
+    transform=plt.gca().transAxes, 
+    fontsize=10, 
+    verticalalignment='top',
+    bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.7, edgecolor='none')
+)
+
+# Etiquetas de los ejes
+plt.xlabel("Turbidez real (NTU) - Escala Log")
+plt.ylabel("Indice ITBDN")
+plt.title("Relación Logarítmica: Turbidez vs ITBDN")
+
+plt.grid(True, linestyle='--', alpha=0.5, which="both") # "both" muestra rejilla para mayores y menores logarítmicos
+plt.tight_layout()
+plt.show()
+
+```
+
+
+# WRI
+
+**Gráfico Turbidez vs WRI**
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Aseguramos que la turbidez esté disponible como columna para el eje X
+df_plot = df_indices.reset_index()
+
+plt.figure(figsize=(4.5, 4.5))
+
+# Graficamos únicamente los puntos en color morado (#9D50A6) 
+plt.scatter(
+    df_plot['turbidez'], 
+    df_plot['WRI'], 
+    color="#9D50A6", 
+    alpha=0.6, 
+    edgecolors='none',
+    s=40
+)
+
+# Etiquetas de los ejes
+plt.xlabel("Turbidez real (NTU)")
+plt.ylabel("Indice WRI")
+plt.title("Relación entre Turbidez Real e Índice WRI")
+
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.tight_layout()
+plt.show()
+
+```
+
+Con logaritmo 
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Aseguramos que la turbidez esté disponible como columna para el eje X
+df_plot = df_indices.reset_index()
+
+plt.figure(figsize=(4.5, 4.5))
+
+# 1. Graficamos los puntos en color morado (#9D50A6)
+plt.scatter(
+    df_plot['turbidez'], 
+    df_plot['WRI'], 
+    color="#9D50A6", 
+    alpha=0.6, 
+    edgecolors='none',
+    s=40
+)
+
+# 2. Cálculo del coeficiente de correlación usando log10(turbidez)
+# Esto evalúa la fuerza de la relación logarítmica/exponencial real
+log_turbidez = np.log(df_plot['turbidez'])
+r_corr = np.corrcoef(log_turbidez, df_plot['WRI'])[0, 1]
+
+# 3. Cálculo de la línea de tendencia logarítmica: y = a * log10(x) + b
+coef_log = np.polyfit(log_turbidez, df_plot['WRI'], 1)
+
+# Creamos un espacio logarítmico para que la curva se dibuje suavemente
+x_val = np.logspace(np.log(df_plot['turbidez'].min()), np.log10(df_plot['turbidez'].max()), 100)
+y_val = coef_log[0] * np.log(x_val) + coef_log[1]
+
+# 4. Graficamos la curva de tendencia en color verde (#17A77E)
+plt.plot(
+    x_val, 
+    y_val, 
+    '-', 
+    color="#17A77E", 
+    lw=2
+)
+
+# 5. Forzamos al eje X a usar escala logarítmica base 10
+plt.xscale('log')
+
+# 6. Agregamos el texto de la correlación ajustada
+plt.gca().text(
+    0.05, 0.92, 
+    f'$r$ (log) = {r_corr:.3f}', 
+    transform=plt.gca().transAxes, 
+    fontsize=10, 
+    verticalalignment='top',
+    bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.7, edgecolor='none')
+)
+
+# Etiquetas de los ejes
+plt.xlabel("Turbidez real (NTU) - Escala Log")
+plt.ylabel("Indice WRI")
+plt.title("Relación Logarítmica: Turbidez vs WRI")
+
+plt.grid(True, linestyle='--', alpha=0.5, which="both") # "both" muestra rejilla para mayores y menores logarítmicos
+plt.tight_layout()
+plt.show()
+```
+
+
+# S2WI (B05 - B12) / (B05 + B12)
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Aseguramos que la turbidez esté disponible como columna para el eje X
+df_plot = df_indices.reset_index()
+
+plt.figure(figsize=(4.5, 4.5))
+
+# Graficamos únicamente los puntos en color morado (#9D50A6) 
+plt.scatter(
+    df_plot['turbidez'], 
+    df_plot['S2WI'], 
+    color="#9D50A6", 
+    alpha=0.6, 
+    edgecolors='none',
+    s=40
+)
+
+# Etiquetas de los ejes
+plt.xlabel("Turbidez real (NTU)")
+plt.ylabel("Indice S2WI")
+plt.title("Relación entre Turbidez Real e Índice S2WI")
+
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.tight_layout()
+plt.show()
+```
+
+**Con logaritmo **
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Aseguramos que la turbidez esté disponible como columna para el eje X
+df_plot = df_indices.reset_index()
+
+plt.figure(figsize=(4.5, 4.5))
+
+# 1. Graficamos los puntos en color morado (#9D50A6)
+plt.scatter(
+    df_plot['turbidez'], 
+    df_plot['S2WI'], 
+    color="#9D50A6", 
+    alpha=0.6, 
+    edgecolors='none',
+    s=40
+)
+
+# 2. Cálculo del coeficiente de correlación usando log10(turbidez)
+# Esto evalúa la fuerza de la relación logarítmica/exponencial real
+log_turbidez = np.log(df_plot['turbidez'])
+r_corr = np.corrcoef(log_turbidez, df_plot['S2WI'])[0, 1]
+
+# 3. Cálculo de la línea de tendencia logarítmica: y = a * log10(x) + b
+coef_log = np.polyfit(log_turbidez, df_plot['S2WI'], 1)
+
+# Creamos un espacio logarítmico para que la curva se dibuje suavemente
+x_val = np.logspace(np.log(df_plot['turbidez'].min()), np.log10(df_plot['turbidez'].max()), 100)
+y_val = coef_log[0] * np.log(x_val) + coef_log[1]
+
+# 4. Graficamos la curva de tendencia en color verde (#17A77E)
+plt.plot(
+    x_val, 
+    y_val, 
+    '-', 
+    color="#17A77E", 
+    lw=2
+)
+
+# 5. Forzamos al eje X a usar escala logarítmica base 10
+plt.xscale('log')
+
+# 6. Agregamos el texto de la correlación ajustada
+plt.gca().text(
+    0.05, 0.92, 
+    f'$r$ (log) = {r_corr:.3f}', 
+    transform=plt.gca().transAxes, 
+    fontsize=10, 
+    verticalalignment='top',
+    bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.7, edgecolor='none')
+)
+
+# Etiquetas de los ejes
+plt.xlabel("Turbidez real (NTU) - Escala Log")
+plt.ylabel("Indice S2WI")
+plt.title("Relación Logarítmica: Turbidez vs S2WI")
+
+plt.grid(True, linestyle='--', alpha=0.5, which="both") # "both" muestra rejilla para mayores y menores logarítmicos
+plt.tight_layout()
+plt.show()
+```
