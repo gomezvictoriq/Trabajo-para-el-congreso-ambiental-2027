@@ -520,16 +520,16 @@ import pandas as pd
 df = pd.read_csv("Output/csv/Turbidez-Bandas.csv")
 
 df.head()
+
 ```
 
 Cálculo de índices espectrales
-
-
 
 ```{python}
 #| echo: false
 #| warning: false
 #| message: false
+import pandas as pd
 import numpy as np
 
 df = pd.read_csv("Output/csv/Datos_modelado_indices_espectrales.csv")
@@ -543,9 +543,6 @@ df_indices = df.reset_index()
 # (Red - Green) / (Red + Green)
 df_indices['NDTI'] = (df_indices['B04'] - df_indices['B03']) / (df_indices['B04'] + df_indices['B03'])
 
-# ITBDN (Índice de Turbidez Baja de Diferencia Normalizada)
-# (B3−B2) / (B3+B2)
-df_indices['ITBDN'] = (df_indices['B03'] - df_indices['B02']) / (df_indices['B03'] + df_indices['B02'])
 
 # NDSSI (Normalized Difference Suspended Sediment Index)
 #(B02 - B08) / (B02 + B08)
@@ -560,6 +557,15 @@ df_indices['WRI'] = (df_indices['B03'] - df_indices['B04']) / (df_indices['B08']
 df_indices['S2WI'] = (df_indices['B05'] - df_indices['B12']) / (df_indices['B05'] + df_indices['B12'])
 
 
+df_indices['RNDVI'] = (df_indices['B04'] - df_indices['B08']) / (df_indices['B04'] + df_indices['B08'])
+
+df_indices['ROJO/VERDE'] = df_indices['B04'] / df_indices['B03']
+
+
+df_indices['MNDWI'] = (df_indices['B03'] - df_indices['B11']) / (df_indices['B03'] + df_indices['B11'])
+
+df_indices['NIR/RED'] = df_indices['B08'] / df_indices['B04']
+
 
 # 3. Volvemos a dejar la turbidez como índice (opcional, si prefieres mantener tu formato original)
 #df_indices.set_index('turbidez', inplace=True)
@@ -571,7 +577,7 @@ df_indices.head()
 ```
 
 
-# NDTI
+# NDTI ★
 **Gráfico Turbidez vs NDTI**
 
 ```{python}
@@ -680,117 +686,10 @@ plt.show()
 ```
 
 
-# ITBDN  , no funciona
-Trabajo de Brasil. no funciona este indice
 
-**Gráfico Turbidez vs ITBDN** 
+# WRI ★
 
-```{python}
-#| echo: false
-#| warning: false
-#| message: false
-
-import matplotlib.pyplot as plt
-import numpy as np
-
-# Aseguramos que la turbidez esté disponible como columna para el eje X
-df_plot = df_indices.reset_index()
-
-plt.figure(figsize=(4.5, 4.5))
-
-# Graficamos únicamente los puntos en color morado (#9D50A6) 
-plt.scatter(
-    df_plot['turbidez'], 
-    df_plot['ITBDN'], 
-    color="#9D50A6", 
-    alpha=0.6, 
-    edgecolors='none',
-    s=40
-)
-
-# Etiquetas de los ejes
-plt.xlabel("Turbidez real (NTU)")
-plt.ylabel("Indice ITBDN")
-plt.title("Relación entre Turbidez Real e Índice ITBDN")
-
-plt.grid(True, linestyle='--', alpha=0.5)
-plt.tight_layout()
-plt.show()
-
-```
-
-Con logaritmo
-
-```{python}
-#| echo: false
-#| warning: false
-#| message: false
-
-import matplotlib.pyplot as plt
-import numpy as np
-
-# Aseguramos que la turbidez esté disponible como columna para el eje X
-df_plot = df_indices.reset_index()
-
-plt.figure(figsize=(4.5, 4.5))
-
-# 1. Graficamos los puntos en color morado (#9D50A6)
-plt.scatter(
-    df_plot['turbidez'], 
-    df_plot['ITBDN'], 
-    color="#9D50A6", 
-    alpha=0.6, 
-    edgecolors='none',
-    s=40
-)
-
-# 2. Cálculo del coeficiente de correlación usando log10(turbidez)
-# Esto evalúa la fuerza de la relación logarítmica/exponencial real
-log_turbidez = np.log(df_plot['turbidez'])
-r_corr = np.corrcoef(log_turbidez, df_plot['ITBDN'])[0, 1]
-
-# 3. Cálculo de la línea de tendencia logarítmica: y = a * log10(x) + b
-coef_log = np.polyfit(log_turbidez, df_plot['ITBDN'], 1)
-
-# Creamos un espacio logarítmico para que la curva se dibuje suavemente
-x_val = np.logspace(np.log(df_plot['turbidez'].min()), np.log10(df_plot['turbidez'].max()), 100)
-y_val = coef_log[0] * np.log(x_val) + coef_log[1]
-
-# 4. Graficamos la curva de tendencia en color verde (#17A77E)
-plt.plot(
-    x_val, 
-    y_val, 
-    '-', 
-    color="#17A77E", 
-    lw=2
-)
-
-# 5. Forzamos al eje X a usar escala logarítmica base 10
-plt.xscale('log')
-
-# 6. Agregamos el texto de la correlación ajustada
-plt.gca().text(
-    0.05, 0.92, 
-    f'$r$ (log) = {r_corr:.3f}', 
-    transform=plt.gca().transAxes, 
-    fontsize=10, 
-    verticalalignment='top',
-    bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.7, edgecolor='none')
-)
-
-# Etiquetas de los ejes
-plt.xlabel("Turbidez real (NTU) - Escala Log")
-plt.ylabel("Indice ITBDN")
-plt.title("Relación Logarítmica: Turbidez vs ITBDN")
-
-plt.grid(True, linestyle='--', alpha=0.5, which="both") # "both" muestra rejilla para mayores y menores logarítmicos
-plt.tight_layout()
-plt.show()
-
-```
-
-
-# WRI
+**Water Ratio Index**
 
 **Gráfico Turbidez vs WRI**
 
@@ -899,7 +798,8 @@ plt.show()
 ```
 
 
-# S2WI (B05 - B12) / (B05 + B12)
+
+# S2WI
 
 ```{python}
 #| echo: false
@@ -1001,4 +901,1020 @@ plt.title("Relación Logarítmica: Turbidez vs S2WI")
 plt.grid(True, linestyle='--', alpha=0.5, which="both") # "both" muestra rejilla para mayores y menores logarítmicos
 plt.tight_layout()
 plt.show()
+```
+
+# RNDVI
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Aseguramos que la turbidez esté disponible como columna para el eje X
+df_plot = df_indices.reset_index()
+
+plt.figure(figsize=(4.5, 4.5))
+
+# Graficamos únicamente los puntos en color morado (#9D50A6) 
+plt.scatter(
+    df_plot['turbidez'], 
+    df_plot['RNDVI'], 
+    color="#9D50A6", 
+    alpha=0.6, 
+    edgecolors='none',
+    s=40
+)
+
+# Etiquetas de los ejes
+plt.xlabel("Turbidez real (NTU)")
+plt.ylabel("Indice RNDVI")
+plt.title("Relación entre Turbidez Real e Índice RNDVI")
+
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.tight_layout()
+plt.show()
+```
+
+
+# ROJO/VERDE ★
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Aseguramos que la turbidez esté disponible como columna para el eje X
+df_plot = df_indices.reset_index()
+
+plt.figure(figsize=(4.5, 4.5))
+
+# Graficamos únicamente los puntos en color morado (#9D50A6) 
+plt.scatter(
+    df_plot['turbidez'], 
+    df_plot['ROJO/VERDE'], 
+    color="#9D50A6", 
+    alpha=0.6, 
+    edgecolors='none',
+    s=40
+)
+
+# Etiquetas de los ejes
+plt.xlabel("Turbidez real (NTU)")
+plt.ylabel("Indice ROJO/VERDE")
+plt.title("Relación entre Turbidez Real e Índice ROJO/VERDE")
+
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.tight_layout()
+plt.show()
+```
+
+**Con logaritmo **
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Aseguramos que la turbidez esté disponible como columna para el eje X
+df_plot = df_indices.reset_index()
+
+plt.figure(figsize=(4.5, 4.5))
+
+# 1. Graficamos los puntos en color morado (#9D50A6)
+plt.scatter(
+    df_plot['turbidez'], 
+    df_plot['ROJO/VERDE'], 
+    color="#9D50A6", 
+    alpha=0.6, 
+    edgecolors='none',
+    s=40
+)
+
+# 2. Cálculo del coeficiente de correlación usando log10(turbidez)
+# Esto evalúa la fuerza de la relación logarítmica/exponencial real
+log_turbidez = np.log(df_plot['turbidez'])
+r_corr = np.corrcoef(log_turbidez, df_plot['ROJO/VERDE'])[0, 1]
+
+# 3. Cálculo de la línea de tendencia logarítmica: y = a * log10(x) + b
+coef_log = np.polyfit(log_turbidez, df_plot['ROJO/VERDE'], 1)
+
+# Creamos un espacio logarítmico para que la curva se dibuje suavemente
+x_val = np.logspace(np.log(df_plot['turbidez'].min()), np.log10(df_plot['turbidez'].max()), 100)
+y_val = coef_log[0] * np.log(x_val) + coef_log[1]
+
+# 4. Graficamos la curva de tendencia en color verde (#17A77E)
+plt.plot(
+    x_val, 
+    y_val, 
+    '-', 
+    color="#17A77E", 
+    lw=2
+)
+
+# 5. Forzamos al eje X a usar escala logarítmica base 10
+plt.xscale('log')
+
+# 6. Agregamos el texto de la correlación ajustada
+plt.gca().text(
+    0.05, 0.92, 
+    f'$r$ (log) = {r_corr:.3f}', 
+    transform=plt.gca().transAxes, 
+    fontsize=10, 
+    verticalalignment='top',
+    bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.7, edgecolor='none')
+)
+
+# Etiquetas de los ejes
+plt.xlabel("Turbidez real (NTU) - Escala Log")
+plt.ylabel("Indice ROJO/VERDE")
+plt.title("Relación Logarítmica: Turbidez vs ROJO/VERDE")
+
+plt.grid(True, linestyle='--', alpha=0.5, which="both") # "both" muestra rejilla para mayores y menores logarítmicos
+plt.tight_layout()
+plt.show()
+```
+
+# MNWDI
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Aseguramos que la turbidez esté disponible como columna para el eje X
+df_plot = df_indices.reset_index()
+
+plt.figure(figsize=(4.5, 4.5))
+
+# Graficamos únicamente los puntos en color morado (#9D50A6) 
+plt.scatter(
+    df_plot['turbidez'], 
+    df_plot['MNDWI'], 
+    color="#9D50A6", 
+    alpha=0.6, 
+    edgecolors='none',
+    s=40
+)
+
+# Etiquetas de los ejes
+plt.xlabel("Turbidez real (NTU)")
+plt.ylabel("Indice MNDWI")
+plt.title("Relación entre Turbidez Real e Índice MNDWI")
+
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.tight_layout()
+plt.show()
+```
+
+
+# NIR/RED
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Aseguramos que la turbidez esté disponible como columna para el eje X
+df_plot = df_indices.reset_index()
+
+plt.figure(figsize=(4.5, 4.5))
+
+# Graficamos únicamente los puntos en color morado (#9D50A6) 
+plt.scatter(
+    df_plot['turbidez'], 
+    df_plot['NIR/RED'], 
+    color="#9D50A6", 
+    alpha=0.6, 
+    edgecolors='none',
+    s=40
+)
+
+# Etiquetas de los ejes
+plt.xlabel("Turbidez real (NTU)")
+plt.ylabel("Indice NIR/RED")
+plt.title("Relación entre Turbidez Real e Índice NIR/RED")
+
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.tight_layout()
+plt.show()
+```
+
+
+# Modelado 
+
+## Modelo lineal con WRI
+
+Utiliza el índice WRI y una transformación mediante logaritmo natural para estimar turbidez.
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
+from bootstrap import run_bootstrap_linear_regression_analysis
+
+# 1. Leer datos 
+
+df = df_indices.reset_index() 
+
+# Selecionar índice: 'WRI', 'NDTI', 'ROJO/VERDE'
+indice_actual = 'WRI'
+
+# Variables predictoras y objetivo (¡Se actualiza solo!)
+variables = [indice_actual]
+X_completo = df[variables].values
+y_completo = df['turbidez'].values
+
+# Separar entrenamiento y testeo antes de la transformación
+X_train, X_test, y_train, y_test = train_test_split(
+    X_completo, y_completo, test_size=0.25, random_state=42
+)
+
+# APLICAR TRANSFORMACIÓN DE LOGARITMO NATURAL (ln) A LA TURBIDEZ DE ENTRENAMIENTO
+y_train_log = np.log(y_train)
+
+# Ejecutar bootstrapping con la variable objetivo transformada (y_train_log)
+n_iteraciones_config = 1000
+coef_prom, intercept_prom, r2_train_boot, rmse_train_boot = \
+    run_bootstrap_linear_regression_analysis(X_train, y_train_log, n_iteraciones=n_iteraciones_config)
+
+# ------------------ Guardar coeficientes del modelo WRI ------------------ #
+coef_WRI = coef_prom         # coeficiente del índice WRI
+intercept_WRI = intercept_prom  # intercepto
+
+# Modelo final con coeficientes promedio
+modelo_final_promedio = LinearRegression()
+modelo_final_promedio.coef_ = coef_prom
+modelo_final_promedio.intercept_ = intercept_prom
+
+# Predicción en escala logarítmica (ln)
+y_train_log_pred = modelo_final_promedio.predict(X_train)
+y_test_log_pred = modelo_final_promedio.predict(X_test)
+
+# RETORNAR PREDICCIONES A LA ESCALA ORIGINAL (NTU) MEDIANTE LA FUNCIÓN EXPONENCIAL e^x
+y_train_pred = np.exp(y_train_log_pred)
+y_test_pred = np.exp(y_test_log_pred)
+
+# Métricas reales en testeo (calculadas en unidades NTU reales)
+r2_test = r2_score(y_test, y_test_pred)
+rmse_test = np.sqrt(mean_squared_error(y_test, y_test_pred))
+
+# ------------------ Gráfico con estilo personalizado ------------------ #
+plt.figure(figsize=(4.5, 4.5))
+
+# Entrenamiento (Muestras reales vs estimadas en NTU)
+plt.scatter(y_train, y_train_pred, color="#9D50A6", alpha=0.5, label="Datos de entrenamiento", marker='o')
+
+# Test (Muestras reales vs estimadas en NTU)
+plt.scatter(y_test, y_test_pred, color="red", alpha=0.7, label="Datos de testeo", marker='^')
+
+# Línea ideal (1:1)
+min_val = min(np.min(y_train), np.min(y_test))
+max_val = max(np.max(y_train), np.max(y_test))
+plt.plot([min_val, max_val], [min_val, max_val], '--', color="#17A77E", lw=2, label="Línea ideal")
+
+# Línea de tendencia sobre test
+coef_linea = np.polyfit(y_test, y_test_pred, 1)
+x_tendencia = np.linspace(min_val, max_val, 100)
+y_tendencia = coef_linea[0] * x_tendencia + coef_linea[1]
+plt.plot(x_tendencia, y_tendencia, '-', color='black', lw=2, label="Línea de tendencia")
+
+plt.xlabel("Turbidez real (NTU)")
+plt.ylabel("Turbidez estimada (NTU)")
+plt.title(
+    f"Regresión {indice_actual} con Bootstrapping ({n_iteraciones_config} modelos)\n"
+    f"R² entrenamiento: {r2_train_boot:.4f}, RMSE: {rmse_train_boot:.4f} | "
+    f"R² testeo: {r2_test:.4f}, RMSE: {rmse_test:.4f}"
+)
+plt.legend()
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.tight_layout()
+plt.show()
+
+# ------------------ Coeficientes en LaTeX ------------------ #
+from IPython.display import display, Math
+
+nombre_vars_latex = {
+    indice_actual: indice_actual
+}
+
+terminos_latex = [
+    f"{coef:.4f} \\cdot {nombre_vars_latex[var]}"
+    for var, coef in zip(variables, coef_prom)
+]
+
+# Construir la ecuación matemática final reflejando el logaritmo natural (ln)
+ecuacion_latexWRI = " + ".join(terminos_latex)
+ecuacion_latexWRI = f"\\ln(\\text{{turbidez}}) = {ecuacion_latexWRI} + {intercept_prom:.4f}"
+
+display(Math(ecuacion_latexWRI))
+```
+
+
+```{python}
+#| eval: true
+#| echo: false
+#| warning: false
+#| message: false
+# Guardo Modelo
+import json
+import os
+
+# Guardamos los coeficientes promedio calculados por el bootstrap
+config_modelo = {
+    "indice": indice_actual,  # Guardará 'WRI', 'NDTI', etc.
+    "coeficiente": float(coef_prom[0]),
+    "intercepto": float(intercept_prom)
+}
+
+os.makedirs("Output/modelos", exist_ok=True)
+with open("Output/modelos/modelo_lineal_WRI.json", "w") as f:
+    json.dump(config_modelo, f, indent=4)
+
+
+```
+
+## Modelo lineal con NDTI
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
+from bootstrap import run_bootstrap_linear_regression_analysis
+
+# 1. Leer datos 
+
+df = df_indices.reset_index() 
+
+# Selecionar índice: 'WRI', 'NDTI', 'ROJO/VERDE'
+indice_actual = 'NDTI'
+
+# Variables predictoras y objetivo (¡Se actualiza solo!)
+variables = [indice_actual]
+X_completo = df[variables].values
+y_completo = df['turbidez'].values
+
+# Separar entrenamiento y testeo antes de la transformación
+X_train, X_test, y_train, y_test = train_test_split(
+    X_completo, y_completo, test_size=0.25, random_state=42
+)
+
+# APLICAR TRANSFORMACIÓN DE LOGARITMO NATURAL (ln) A LA TURBIDEZ DE ENTRENAMIENTO
+y_train_log = np.log(y_train)
+
+# Ejecutar bootstrapping con la variable objetivo transformada (y_train_log)
+n_iteraciones_config = 1000
+coef_prom, intercept_prom, r2_train_boot, rmse_train_boot = \
+    run_bootstrap_linear_regression_analysis(X_train, y_train_log, n_iteraciones=n_iteraciones_config)
+
+# ------------------ Guardar coeficientes del modelo WRI ------------------ #
+coef_WRI = coef_prom         # coeficiente del índice WRI
+intercept_WRI = intercept_prom  # intercepto
+
+# Modelo final con coeficientes promedio
+modelo_final_promedio = LinearRegression()
+modelo_final_promedio.coef_ = coef_prom
+modelo_final_promedio.intercept_ = intercept_prom
+
+# Predicción en escala logarítmica (ln)
+y_train_log_pred = modelo_final_promedio.predict(X_train)
+y_test_log_pred = modelo_final_promedio.predict(X_test)
+
+# RETORNAR PREDICCIONES A LA ESCALA ORIGINAL (NTU) MEDIANTE LA FUNCIÓN EXPONENCIAL e^x
+y_train_pred = np.exp(y_train_log_pred)
+y_test_pred = np.exp(y_test_log_pred)
+
+# Métricas reales en testeo (calculadas en unidades NTU reales)
+r2_test = r2_score(y_test, y_test_pred)
+rmse_test = np.sqrt(mean_squared_error(y_test, y_test_pred))
+
+# ------------------ Gráfico con estilo personalizado ------------------ #
+plt.figure(figsize=(4.5, 4.5))
+
+# Entrenamiento (Muestras reales vs estimadas en NTU)
+plt.scatter(y_train, y_train_pred, color="#9D50A6", alpha=0.5, label="Datos de entrenamiento", marker='o')
+
+# Test (Muestras reales vs estimadas en NTU)
+plt.scatter(y_test, y_test_pred, color="red", alpha=0.7, label="Datos de testeo", marker='^')
+
+# Línea ideal (1:1)
+min_val = min(np.min(y_train), np.min(y_test))
+max_val = max(np.max(y_train), np.max(y_test))
+plt.plot([min_val, max_val], [min_val, max_val], '--', color="#17A77E", lw=2, label="Línea ideal")
+
+# Línea de tendencia sobre test
+coef_linea = np.polyfit(y_test, y_test_pred, 1)
+x_tendencia = np.linspace(min_val, max_val, 100)
+y_tendencia = coef_linea[0] * x_tendencia + coef_linea[1]
+plt.plot(x_tendencia, y_tendencia, '-', color='black', lw=2, label="Línea de tendencia")
+
+plt.xlabel("Turbidez real (NTU)")
+plt.ylabel("Turbidez estimada (NTU)")
+plt.title(
+    f"Regresión {indice_actual} con Bootstrapping ({n_iteraciones_config} modelos)\n"
+    f"R² entrenamiento: {r2_train_boot:.4f}, RMSE: {rmse_train_boot:.4f} | "
+    f"R² testeo: {r2_test:.4f}, RMSE: {rmse_test:.4f}"
+)
+plt.legend()
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.tight_layout()
+plt.show()
+
+# ------------------ Coeficientes en LaTeX ------------------ #
+from IPython.display import display, Math
+
+nombre_vars_latex = {
+    indice_actual: indice_actual
+}
+
+terminos_latex = [
+    f"{coef:.4f} \\cdot {nombre_vars_latex[var]}"
+    for var, coef in zip(variables, coef_prom)
+]
+
+# Construir la ecuación matemática final reflejando el logaritmo natural (ln)
+ecuacion_latexWRI = " + ".join(terminos_latex)
+ecuacion_latexWRI = f"\\ln(\\text{{turbidez}}) = {ecuacion_latexWRI} + {intercept_prom:.4f}"
+
+display(Math(ecuacion_latexWRI))
+```
+
+## Modelo lineal con cociente de bandas ROJO/VERDE
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
+from bootstrap import run_bootstrap_linear_regression_analysis
+
+# 1. Leer datos 
+
+df = df_indices.reset_index() 
+
+# Selecionar índice: 'WRI', 'NDTI', 'ROJO/VERDE'
+indice_actual = 'ROJO/VERDE'
+
+# Variables predictoras y objetivo (¡Se actualiza solo!)
+variables = [indice_actual]
+X_completo = df[variables].values
+y_completo = df['turbidez'].values
+
+# Separar entrenamiento y testeo antes de la transformación
+X_train, X_test, y_train, y_test = train_test_split(
+    X_completo, y_completo, test_size=0.25, random_state=42
+)
+
+# APLICAR TRANSFORMACIÓN DE LOGARITMO NATURAL (ln) A LA TURBIDEZ DE ENTRENAMIENTO
+y_train_log = np.log(y_train)
+
+# Ejecutar bootstrapping con la variable objetivo transformada (y_train_log)
+n_iteraciones_config = 1000
+coef_prom, intercept_prom, r2_train_boot, rmse_train_boot = \
+    run_bootstrap_linear_regression_analysis(X_train, y_train_log, n_iteraciones=n_iteraciones_config)
+
+# ------------------ Guardar coeficientes del modelo WRI ------------------ #
+coef_WRI = coef_prom         # coeficiente del índice WRI
+intercept_WRI = intercept_prom  # intercepto
+
+# Modelo final con coeficientes promedio
+modelo_final_promedio = LinearRegression()
+modelo_final_promedio.coef_ = coef_prom
+modelo_final_promedio.intercept_ = intercept_prom
+
+# Predicción en escala logarítmica (ln)
+y_train_log_pred = modelo_final_promedio.predict(X_train)
+y_test_log_pred = modelo_final_promedio.predict(X_test)
+
+# RETORNAR PREDICCIONES A LA ESCALA ORIGINAL (NTU) MEDIANTE LA FUNCIÓN EXPONENCIAL e^x
+y_train_pred = np.exp(y_train_log_pred)
+y_test_pred = np.exp(y_test_log_pred)
+
+# Métricas reales en testeo (calculadas en unidades NTU reales)
+r2_test = r2_score(y_test, y_test_pred)
+rmse_test = np.sqrt(mean_squared_error(y_test, y_test_pred))
+
+# ------------------ Gráfico con estilo personalizado ------------------ #
+plt.figure(figsize=(4.5, 4.5))
+
+# Entrenamiento (Muestras reales vs estimadas en NTU)
+plt.scatter(y_train, y_train_pred, color="#9D50A6", alpha=0.5, label="Datos de entrenamiento", marker='o')
+
+# Test (Muestras reales vs estimadas en NTU)
+plt.scatter(y_test, y_test_pred, color="red", alpha=0.7, label="Datos de testeo", marker='^')
+
+# Línea ideal (1:1)
+min_val = min(np.min(y_train), np.min(y_test))
+max_val = max(np.max(y_train), np.max(y_test))
+plt.plot([min_val, max_val], [min_val, max_val], '--', color="#17A77E", lw=2, label="Línea ideal")
+
+# Línea de tendencia sobre test
+coef_linea = np.polyfit(y_test, y_test_pred, 1)
+x_tendencia = np.linspace(min_val, max_val, 100)
+y_tendencia = coef_linea[0] * x_tendencia + coef_linea[1]
+plt.plot(x_tendencia, y_tendencia, '-', color='black', lw=2, label="Línea de tendencia")
+
+plt.xlabel("Turbidez real (NTU)")
+plt.ylabel("Turbidez estimada (NTU)")
+plt.title(
+    f"Regresión {indice_actual} con Bootstrapping ({n_iteraciones_config} modelos)\n"
+    f"R² entrenamiento: {r2_train_boot:.4f}, RMSE: {rmse_train_boot:.4f} | "
+    f"R² testeo: {r2_test:.4f}, RMSE: {rmse_test:.4f}"
+)
+plt.legend()
+plt.grid(True, linestyle='--', alpha=0.5)
+plt.tight_layout()
+plt.show()
+
+# ------------------ Coeficientes en LaTeX ------------------ #
+from IPython.display import display, Math
+
+nombre_vars_latex = {
+    indice_actual: indice_actual
+}
+
+terminos_latex = [
+    f"{coef:.4f} \\cdot {nombre_vars_latex[var]}"
+    for var, coef in zip(variables, coef_prom)
+]
+
+# Construir la ecuación matemática final reflejando el logaritmo natural (ln)
+ecuacion_latexWRI = " + ".join(terminos_latex)
+ecuacion_latexWRI = f"\\ln(\\text{{turbidez}}) = {ecuacion_latexWRI} + {intercept_prom:.4f}"
+
+display(Math(ecuacion_latexWRI))
+```
+
+
+## Mapas
+
+
+
+```{python}
+#| eval: true
+#| echo: false
+#| warning: false
+#| message: false
+
+import rasterio as rs
+import numpy as np
+import matplotlib.pyplot as plt
+import glob
+import os
+import json
+
+# --- 1. CARGAR MODELO LINEAL WRI DESDE EL JSON ---
+ruta_json = r"Output/Modelos/modelo_lineal_WRI.json"
+if not os.path.exists(ruta_json):
+    raise FileNotFoundError(f"No se encontró el archivo del modelo en: {ruta_json}")
+
+with open(ruta_json, "r") as f:
+    modelo_config = json.load(f)
+
+coef_modelo = modelo_config["coeficiente"]
+intercept_modelo = modelo_config["intercepto"]
+
+print("--- MODELO LINEAL CARGADO ---")
+print(f"Ecuación: ln(Turbidez) = {coef_modelo:.4f} * WRI + {intercept_modelo:.4f}")
+
+# --- Configuración de rutas ---
+carpeta = r"D:\GIT\Turbidez\Input\recorte_acolite"
+salida = r"D:\GIT\Turbidez\Output\tiff_WRI_Lineal"
+os.makedirs(salida, exist_ok=True)
+
+# Buscar todos los .tif
+tifs = sorted(glob.glob(os.path.join(carpeta, "*.tif")))
+print(f"Se encontraron {len(tifs)} archivos .tif para procesar")
+
+for ruta in tifs:
+    nombre = os.path.basename(ruta)
+    fecha = os.path.splitext(nombre)[0]
+
+    with rs.open(ruta) as raster:
+        # Bandas necesarias para la máscara NDWI y el índice WRI
+        B03_raw = raster.read(3).astype(np.float32)   # Verde
+        B04_raw = raster.read(4).astype(np.float32)   # Rojo
+        B08_raw = raster.read(8).astype(np.float32)   # NIR
+        B11_raw = raster.read(10).astype(np.float32)  # SWIR
+
+        perfil = raster.profile
+
+    # --- 2. AJUSTE AUTOMÁTICO DE ESCALA DE REFLECTANCIA ---
+    factor_escala = 10000.0 if np.nanmean(B03_raw) > 1.0 else 1.0
+    
+    B03 = B03_raw / factor_escala
+    B04 = B04_raw / factor_escala
+    B08 = B08_raw / factor_escala
+    B11 = B11_raw / factor_escala
+
+    # --- 3. NDWI Y MÁSCARA DE AGUA ---
+    ndwi = (B03 - B11) / (B03 + B11 + 1e-6)
+    umbral = np.nanmean(ndwi)
+    mascara = (ndwi > umbral).astype(np.uint8)
+
+    # --- 4. CÁLCULO DEL ÍNDICE WRI EN RÁSTER ---
+    WRI = (B03 + B04) / (B08 + B11 + 1e-6)
+
+    # --- 5. APLICACIÓN DE LA ECUACIÓN LOG-LINEAL SIN RESTRICCIONES ---
+    turbidez_agua = np.full_like(WRI, np.nan, dtype=np.float32)
+    valores_wri_agua = WRI[mascara == 1]
+
+    if len(valores_wri_agua) > 0:
+        # Evaluamos la ecuación lineal (da valores de ln(turbidez))
+        log_turb_agua = coef_modelo * valores_wri_agua + intercept_modelo
+        
+        # ELIMINADO EL CLIP: Dejamos pasar el valor de turbidez real libre sin importar el rango
+        real_turb_agua = np.exp(log_turb_agua)
+        
+        # Asignamos directamente de vuelta a las zonas con agua
+        turbidez_agua[mascara == 1] = real_turb_agua
+
+    # --- 6. EXPORTAR MAPA FINAL A GEOTIFF ---
+    salida_tif = os.path.join(salida, f"turbidez_{fecha}.tif")
+    perfil.update(dtype=rs.float32, count=1, compress='lzw', nodata=np.nan)
+    with rs.open(salida_tif, 'w', **perfil) as dst:
+        dst.write(turbidez_agua, 1)
+
+    # --- 7. AJUSTE DINÁMICO DE CONTRASTE LIBRE ---
+    if not np.isnan(turbidez_agua).all():
+        p5, p95 = np.nanpercentile(turbidez_agua, [5, 95])
+        if p5 == p95:
+            p5, p95 = np.nanmin(turbidez_agua), np.nanmax(turbidez_agua)
+    else:
+        p5, p95 = 0, 100
+
+    # --- 8. GRÁFICO DE SALIDA ---
+    fig, axes = plt.subplots(1, 2, figsize=(8, 4.5))
+    
+    # Panel izquierda: Máscara
+    im1 = axes[0].imshow(mascara, cmap="Greys")
+    axes[0].set_title(f"Máscara de agua - {fecha}")
+    axes[0].axis("off")
+    cbar1 = fig.colorbar(im1, ax=axes[0], fraction=0.046, pad=0.04)
+    cbar1.set_label("Agua (1) / No Agua (0)")
+
+    # Panel derecha: Turbidez libre en escala real NTU
+    im2 = axes[1].imshow(turbidez_agua, cmap="rainbow", vmin=p5, vmax=p95)
+    axes[1].set_title(f"Turbidez Real (WRI Libre) - {fecha}")
+    axes[1].axis("off")
+    cbar2 = fig.colorbar(im2, ax=axes[1], fraction=0.046, pad=0.04)
+    cbar2.set_label("Turbidez Real (NTU)")
+
+    plt.tight_layout()
+    plt.show()
+
+```
+
+# Series temporales análisis dentro de la serie temporal 
+
+Notas:
+Los cambios que ocurren en el componente de tendencia suelen indicar disturbios (por ejemplo, incendios, ataques de insectos), mientras que los cambios en el componente estacional indican cambios fenológicos (por ejemplo, cambio en el tipo de cobertura terrestre).
+
+Se asume que Tendecia es lineal por tramos, con puntos de quiebre.  t1,t2,.....tn.
+
+Cada tramo tiene su propia ordenada al origen  y su propia pendiente.
+
+Los puntos de quiebre estacionales pueden ocurrir en momentos diferentes a los puntos de quiebre detectados en la componente de tendencia.
+
+En el papaer usan STL para calcular el primer punto de quibre de la componente estacional.
+
+
+Para hacer el análisis de puntos de quiebre, a diferencia del paquete BFAST de R, en Python debemos utilizar 2 módulos para poder hacer el trabajo
+**statsmodels** y **ruptures**
+
+
+Instalamos el módulo ruptures desde la consola.
+
+  - pip install ruptures
+
+[Documentación](https://centre-borelli.github.io/ruptures-docs/install/)
+
+
+## Serie temporal de turbidez: Quiebres en tendencia y estacionalidad 
+
+```{python}
+#| eval: true
+#| echo: false
+#| warning: false
+#| message: false
+
+# Importo funciones
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Lectura de datos
+df = pd.read_csv(r"Output\Datos para series temporales\turb-2017-2021.csv")
+```
+
+
+```{python}
+#| eval: true
+#| echo: false
+#| warning: false
+#| message: false
+import ruptures as rpt
+import statsmodels.api as sm
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.tsa.seasonal import seasonal_decompose
+
+
+# 1. PASO ESTADÍSTICO (Descomposición)
+
+st = seasonal_decompose(df['turb'], model='additive', period=365)
+
+# Limpieza para Tendencia
+tendencia_limpia = st.trend.dropna()
+valores_tendencia = tendencia_limpia.values
+fechas_tendencia = tendencia_limpia.index
+
+# Preparación para Estacionalidad 
+valores_estacional = st.seasonal.values
+fechas_estacional = st.seasonal.index
+
+
+# 2. DETECCIÓN DE QUIEBRES EN AMBOS COMPONENTES (Lógica BFAST)
+
+# Quiebres en Tendencia
+modelo_trend = rpt.Pelt(model="l2", min_size=180).fit(valores_tendencia)
+puntos_trend = modelo_trend.predict(pen=100)
+
+# Quiebres en Estacionalidad
+
+modelo_season = rpt.Pelt(model="l2", min_size=365).fit(valores_estacional)
+puntos_season = modelo_season.predict(pen=150) 
+
+# 3. ARMADO DEL GRÁFICO INTEGRADO (4 Paneles con Doble Quiebre)
+
+fig, axes = plt.subplots(4, 1, figsize=(10, 8), sharex=True)
+
+# Panel 1: Serie Original (turb)
+axes[0].plot(df.index, df['turb'], color='#1f77b4')
+axes[0].set_title('turb', loc='center')
+
+# Panel 2: TENDENCIA + QUIEBRES
+axes[1].plot(fechas_tendencia, valores_tendencia, color='#1f77b4', lw=2)
+axes[1].set_ylabel('Trend')
+
+indices_trend = [0] + puntos_trend
+for i in range(len(indices_trend) - 1):
+    inicio, fin = indices_trend[i], indices_trend[i+1] - 1
+    X_tramo = sm.add_constant(np.arange(inicio, fin + 1))
+    y_tramo = valores_tendencia[inicio:fin + 1]
+    res_tramo = sm.OLS(y_tramo, X_tramo).fit()
+    axes[1].plot(fechas_tendencia[inicio:fin + 1], res_tramo.fittedvalues, color="red", linestyle="--", lw=2)
+    if i < len(indices_trend) - 2:
+        axes[1].axvline(fechas_tendencia[fin], color="black", linestyle=":", lw=1.5)
+
+# Panel 3: ESTACIONALIDAD + QUIEBRES 
+axes[2].plot(fechas_estacional, valores_estacional, color='#1f77b4', lw=1.5)
+axes[2].set_ylabel('Seasonal')
+
+indices_season = [0] + puntos_season
+for i in range(len(indices_season) - 1):
+    inicio, fin = indices_season[i], indices_season[i+1] - 1
+    
+    #  líneas verticales de quiebre estacional e
+    if i < len(indices_season) - 2:
+        axes[2].axvline(fechas_estacional[fin], color="darkmagenta", linestyle="-.", lw=1.5)
+        
+        axes[0].axvline(fechas_estacional[fin], color="darkmagenta", linestyle="-.", lw=1, alpha=0.5)
+
+# Panel 4: Residuos (Resid)
+axes[3].scatter(df.index, st.resid, color='#1f77b4', s=15)
+axes[3].axhline(0, color='black', linestyle='-')
+axes[3].set_ylabel('Resid')
+
+plt.tight_layout()
+plt.show()
+
+```
+
+En la componente estacional (Seasonal) los quiebres significan un cambio en la forma, la duración o la intensidad del ciclo anual.
+
+## Serie temporal de conductividad: Quiebres en tendencia y estacionalidad
+
+```{python}
+#| eval: true
+#| echo: false
+#| warning: false
+#| message: false
+
+# Importo funciones
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Lectura de datos
+df = pd.read_csv(r"Output\Datos para series temporales\cond-2017-2021.csv")
+```
+
+
+```{python}
+#| eval: true
+#| echo: false
+#| warning: false
+#| message: false
+
+import ruptures as rpt
+import statsmodels.api as sm
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+# 1. PASO ESTADÍSTICO (Descomposición)
+
+st = seasonal_decompose(df['cond'], model='additive', period=365)
+
+# Limpieza para Tendencia
+tendencia_limpia = st.trend.dropna()
+valores_tendencia = tendencia_limpia.values
+fechas_tendencia = tendencia_limpia.index
+
+# Preparación para Estacionalidad 
+valores_estacional = st.seasonal.values
+fechas_estacional = st.seasonal.index
+
+#2. DETECCIÓN DE QUIEBRES EN AMBOS COMPONENTES (Lógica BFAST)
+
+# Quiebres en Tendencia
+modelo_trend = rpt.Pelt(model="l2", min_size=180).fit(valores_tendencia)
+puntos_trend = modelo_trend.predict(pen=100)
+
+# Quiebres en Estacionalidad
+
+modelo_season = rpt.Pelt(model="l2", min_size=365).fit(valores_estacional)
+puntos_season = modelo_season.predict(pen=150) # Penalización alta anti-ruido
+
+
+# 3. ARMADO DEL GRÁFICO INTEGRADO (4 Paneles con Doble Quiebre)
+
+fig, axes = plt.subplots(4, 1, figsize=(10, 8), sharex=True)
+
+# Panel 1: Serie Original (cond)
+axes[0].plot(df.index, df['cond'], color='#1f77b4')
+axes[0].set_title('cond', loc='center')
+
+# Panel 2: TENDENCIA + QUIEBRES
+axes[1].plot(fechas_tendencia, valores_tendencia, color='#1f77b4', lw=2)
+axes[1].set_ylabel('Trend')
+
+indices_trend = [0] + puntos_trend
+for i in range(len(indices_trend) - 1):
+    inicio, fin = indices_trend[i], indices_trend[i+1] - 1
+    X_tramo = sm.add_constant(np.arange(inicio, fin + 1))
+    y_tramo = valores_tendencia[inicio:fin + 1]
+    res_tramo = sm.OLS(y_tramo, X_tramo).fit()
+    axes[1].plot(fechas_tendencia[inicio:fin + 1], res_tramo.fittedvalues, color="red", linestyle="--", lw=2)
+    if i < len(indices_trend) - 2:
+        axes[1].axvline(fechas_tendencia[fin], color="black", linestyle=":", lw=1.5)
+
+# Panel 3: ESTACIONALIDAD + QUIEBRES
+axes[2].plot(fechas_estacional, valores_estacional, color='#1f77b4', lw=1.5)
+axes[2].set_ylabel('Seasonal')
+
+indices_season = [0] + puntos_season
+for i in range(len(indices_season) - 1):
+    inicio, fin = indices_season[i], indices_season[i+1] - 1
+    
+    # líneas verticales de quiebre estacional
+    if i < len(indices_season) - 2:
+        axes[2].axvline(fechas_estacional[fin], color="darkmagenta", linestyle="-.", lw=1.5)
+        axes[0].axvline(fechas_estacional[fin], color="darkmagenta", linestyle="-.", lw=1, alpha=0.5)
+
+# Panel 4: Residuos (Resid)
+axes[3].scatter(df.index, st.resid, color='#1f77b4', s=15)
+axes[3].axhline(0, color='black', linestyle='-')
+axes[3].set_ylabel('Resid')
+
+plt.tight_layout()
+plt.show()
+
+```
+
+## Serie temporal de pH: Quiebres en tendencia y estacionalidad
+
+```{python}
+#| eval: true
+#| echo: false
+#| warning: false
+#| message: false
+
+# Importo funciones
+import pandas as pd
+
+# Lectura de datos
+df = pd.read_csv(r"Output\Datos para series temporales\ph-2017-2021.csv")
+```
+
+
+```{python}
+#| eval: true
+#| echo: false
+#| warning: false
+#| message: false
+
+import ruptures as rpt
+import statsmodels.api as sm
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 1. PASO ESTADÍSTICO (Descomposición)
+
+st = seasonal_decompose(df['ph'], model='additive', period=365)
+
+# Limpieza para Tendencia
+tendencia_limpia = st.trend.dropna()
+valores_tendencia = tendencia_limpia.values
+fechas_tendencia = tendencia_limpia.index
+
+# Preparación para Estacionalidad (
+valores_estacional = st.seasonal.values
+fechas_estacional = st.seasonal.index
+
+
+# 2. DETECCIÓN DE QUIEBRES EN AMBOS COMPONENTES (Lógica BFAST)
+# Quiebres en Tendencia
+modelo_trend = rpt.Pelt(model="l2", min_size=180).fit(valores_tendencia)
+puntos_trend = modelo_trend.predict(pen=100)
+
+# Quiebres en Estacionalidad
+
+modelo_season = rpt.Pelt(model="l2", min_size=365).fit(valores_estacional)
+puntos_season = modelo_season.predict(pen=150) 
+
+
+# 3. ARMADO DEL GRÁFICO INTEGRADO 
+
+fig, axes = plt.subplots(4, 1, figsize=(10, 8), sharex=True)
+
+# Panel 1: Serie Original (ph)
+axes[0].plot(df.index, df['ph'], color='#1f77b4')
+axes[0].set_title('ph', loc='center')
+
+# Panel 2: TENDENCIA + QUIEBRES
+axes[1].plot(fechas_tendencia, valores_tendencia, color='#1f77b4', lw=2)
+axes[1].set_ylabel('Trend')
+
+indices_trend = [0] + puntos_trend
+for i in range(len(indices_trend) - 1):
+    inicio, fin = indices_trend[i], indices_trend[i+1] - 1
+    X_tramo = sm.add_constant(np.arange(inicio, fin + 1))
+    y_tramo = valores_tendencia[inicio:fin + 1]
+    res_tramo = sm.OLS(y_tramo, X_tramo).fit()
+    axes[1].plot(fechas_tendencia[inicio:fin + 1], res_tramo.fittedvalues, color="red", linestyle="--", lw=2)
+    if i < len(indices_trend) - 2:
+        axes[1].axvline(fechas_tendencia[fin], color="black", linestyle=":", lw=1.5)
+
+# Panel 3: ESTACIONALIDAD + QUIEBRES 
+axes[2].plot(fechas_estacional, valores_estacional, color='#1f77b4', lw=1.5)
+axes[2].set_ylabel('Seasonal')
+
+indices_season = [0] + puntos_season
+for i in range(len(indices_season) - 1):
+    inicio, fin = indices_season[i], indices_season[i+1] - 1
+    
+    # líneas verticales de quiebre estacional en color púrpura
+    if i < len(indices_season) - 2:
+        axes[2].axvline(fechas_estacional[fin], color="darkmagenta", linestyle="-.", lw=1.5)
+        axes[0].axvline(fechas_estacional[fin], color="darkmagenta", linestyle="-.", lw=1, alpha=0.5)
+
+# Panel 4: Residuos 
+axes[3].scatter(df.index, st.resid, color='#1f77b4', s=15)
+axes[3].axhline(0, color='black', linestyle='-')
+axes[3].set_ylabel('Resid')
+
+plt.tight_layout()
+plt.show()
+
 ```
