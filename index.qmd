@@ -1918,3 +1918,350 @@ plt.tight_layout()
 plt.show()
 
 ```
+
+
+# Análisis con FFT (Fast Fourier Transform)
+
+Transformada Rápida de Fourier
+
+de la librería SciPy, podemos usar paquete Signal processing (scipy.signal), del cual importamos en el módulo Spectral analysis.
+
+
+
+```{python}
+#| eval: true
+#| echo: false
+#| warning: false
+#| message: false
+import matplotlib.pyplot as plt
+import pandas as pd
+from scipy.signal import periodogram
+
+# 1. Cargo el archivo CSV con datos
+#  
+df = pd.read_csv("Output/Datos para series temporales/turb-2017-2021.csv")
+
+# 2. Convertir la columna de fechas a datetime y ordenar por las dudas
+df["Fecha"] = pd.to_datetime(df["Fecha"])
+df = df.sort_values("Fecha").reset_index(drop=True)
+
+# 3. Extraer la serie de turbidez asegurándose de que no queden valores nulos
+y = df["turb"].dropna().values
+
+# Asumimos una frecuencia de muestreo de 1 dato por día (fs = 1.0)
+fs = 1.0
+
+# 4. Calcular el periodograma (la FFT aplicada mediante SciPy)
+frecuencias, potencia = periodogram(y, fs=fs)
+
+# 5. Filtrar la frecuencia cero (componente continua / promedio) y calcular períodos
+mask = frecuencias > 0
+periodos = 1 / frecuencias[mask]
+potencia_filtrada = potencia[mask]
+
+# 6. Graficar el Periodograma
+plt.figure(figsize=(10, 4))
+plt.plot(periodos, potencia_filtrada, color="royalblue", lw=1.5)
+plt.xlabel("Período (días)")
+plt.ylabel("Densidad Espectral (Power)")
+plt.title("Periodograma (FFT) de la Serie de Turbidez")
+plt.xlim(
+    0, 600
+)  # Limitamos el eje X para visualizar con detalle ciclos anuales (~365 días) o menores
+plt.grid(True, linestyle="--", alpha=0.6)
+plt.tight_layout()
+plt.show()
+```
+
+
+
+```{python}
+#| eval: true
+#| echo: false
+#| warning: false
+#| message: false
+import matplotlib.pyplot as plt
+import pandas as pd
+from scipy.signal import welch
+
+# 1. Cargar el archivo CSV (reemplazá 'tu_archivo.csv' por la ruta real de tu archivo)
+df = pd.read_csv("Output/Datos para series temporales/turb-2017-2021.csv")
+
+# 2. Convertir la fecha y ordenar
+df["Fecha"] = pd.to_datetime(df["Fecha"])
+df = df.sort_values("Fecha").reset_index(drop=True)
+
+# 3. Extraer la serie de turbidez sin valores nulos
+y = df["turb"].dropna().values
+
+# Frecuencia de muestreo: 1 dato por día (fs = 1.0)
+fs = 1.0
+
+# 4. Aplicar el método de Welch
+# nperseg define el tamaño de los segmentos para suavizar el ruido (ej. 256 o 365 días)
+frecuencias, densidad_potencia = welch(y, fs=fs, nperseg=365)
+
+# 5. Filtrar la frecuencia cero y calcular períodos (días por ciclo)
+mask = frecuencias > 0
+periodos = 1 / frecuencias[mask]
+potencia_suavizada = densidad_potencia[mask]
+
+# 6. Graficar el espectro suavizado
+plt.figure(figsize=(10, 4))
+plt.plot(periodos, potencia_suavizada, color="teal", lw=1.5)
+plt.xlabel("Período (días)")
+plt.ylabel("Densidad Espectral de Potencia (PSD)")
+plt.title("Análisis Espectral de Turbidez - Método de Welch")
+plt.xlim(
+    0, 600
+)  # Delimitamos para ver claramente el ciclo anual (~365 días)
+plt.grid(True, linestyle="--", alpha=0.6)
+plt.tight_layout()
+plt.show()
+```
+
+# Análisis de serie temporal de turbidez, aplicación transformada de Fourier
+
+La transformada de Fourier aplicada a una serie temporal permite pasar del dominio del tiempo (valores medidos a lo largo de los días, meses o segundos) al dominio de la frecuencia, desarmando la señal en una suma de ondas sinusoidales simples de distintas amplitudes y fases
+
+
+
+
+```{python}
+#| eval: true
+#| echo: false
+#| warning: false
+#| message: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.fft import fft, fftfreq
+
+
+RUTA_CSV = "Output/Datos para series temporales/turb-2017-2021.csv" 
+
+COLUMNA_FECHA = "Fecha"        
+COLUMNA_TURBIDEZ = "turb"   
+
+
+try:
+    # 1. Cargar y preparar los datos
+    df = pd.read_csv(RUTA_CSV)
+    
+    # Convertir fechas y ordenar
+    df[COLUMNA_FECHA] = pd.to_datetime(df[COLUMNA_FECHA])
+    df = df.sort_values(by=COLUMNA_FECHA).dropna(subset=[COLUMNA_TURBIDEZ])
+    
+    # IMPORTANTE para Fourier: Asegurar un registro diario continuo (sin saltos)
+    df = df.set_index(COLUMNA_FECHA).resample('D').mean()
+    
+    # Rellenar valores faltantes (si los hay) usando interpolación lineal
+    df[COLUMNA_TURBIDEZ] = df[COLUMNA_TURBIDEZ].interpolate(method='linear')
+    
+    # Restar la media para eliminar el componente continuo (frecuencia 0)
+    turbidez_centrada = df[COLUMNA_TURBIDEZ].values - df[COLUMNA_TURBIDEZ].mean()
+
+    # 2. Aplicar la Transformada Rápida de Fourier (FFT)
+    N = len(turbidez_centrada)
+    Fuestreo = 1  # 1 muestra por día
+    
+    X_fft = fft(turbidez_centrada)
+    frecuencias = fftfreq(N, d=1/Fuestreo)
+
+    # Nos quedamos solo con la mitad positiva del espectro
+    frecuencias_pos = frecuencias[:N//2]
+    potencia_pos = np.abs(X_fft[:N//2]) ** 2  # Espectro de potencia
+
+    # Evitar división por cero en la primera posición (frecuencia cero)
+    with np.errstate(divide='ignore'):
+        periodos = 1 / frecuencias_pos
+
+    # 3. Graficar la serie temporal original y el espectro de frecuencias
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8))
+    
+    # Gráfico 1: Serie Temporal de Turbidez
+    ax1.plot(df.index, df[COLUMNA_TURBIDEZ], color='teal', alpha=0.8)
+    ax1.set_title("Serie Temporal Original de Turbidez (2019 - 2021)")
+    ax1.set_ylabel("Turbidez")
+    ax1.grid(True, linestyle='--')
+
+    # Gráfico 2: Periodograma (Zoom a periodos de entre 2 y 400 días)
+    # Esto ayuda a visualizar ciclos semanales, mensuales o anuales claramente
+    mascara_zoom = (periodos >= 2) & (periodos <= 400)
+    
+    ax2.plot(periodos[mascara_zoom], potencia_pos[mascara_zoom], color='crimson', linewidth=2)
+    ax2.set_title("Periodograma: Detección de Ciclos de Turbidez")
+    ax2.set_xlabel("Periodo del ciclo (Días)")
+    ax2.set_ylabel("Potencia / Fuerza del patrón")
+    ax2.grid(True, linestyle='--')
+    
+
+    plt.tight_layout()
+    plt.show()
+
+except FileNotFoundError:
+    print(f"❌ Error: No se encontró ningún archivo en la ruta: '{RUTA_CSV}'")
+except KeyError:
+    print(f"❌ Error: Verifica los nombres de las columnas. Tus columnas actuales son: {list(df.columns)}")
+```
+
+# Análisis de serie temporal de conductividad, aplicación transformada de Fourier
+
+```{python}
+#| eval: true
+#| echo: false
+#| warning: false
+#| message: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.fft import fft, fftfreq
+
+
+RUTA_CSV = "Output/Datos para series temporales/cond-2017-2021.csv" 
+
+COLUMNA_FECHA = "Fecha"        
+CONDUCTIVIDAD = "cond"   
+
+
+try:
+    # 1. Cargar y preparar los datos
+    df = pd.read_csv(RUTA_CSV)
+    
+    # Convertir fechas y ordenar
+    df[COLUMNA_FECHA] = pd.to_datetime(df[COLUMNA_FECHA])
+    df = df.sort_values(by=COLUMNA_FECHA).dropna(subset=[CONDUCTIVIDAD])
+    
+    # IMPORTANTE para Fourier: Asegurar un registro diario continuo (sin saltos)
+    df = df.set_index(COLUMNA_FECHA).resample('D').mean()
+    
+    # Rellenar valores faltantes (si los hay) usando interpolación lineal
+    df[CONDUCTIVIDAD] = df[CONDUCTIVIDAD].interpolate(method='linear')
+    
+    # Restar la media para eliminar el componente continuo (frecuencia 0)
+    turbidez_centrada = df[CONDUCTIVIDAD].values - df[CONDUCTIVIDAD].mean()
+
+    # 2. Aplicar la Transformada Rápida de Fourier (FFT)
+    N = len(turbidez_centrada)
+    Fuestreo = 1  # 1 muestra por día
+    
+    X_fft = fft(turbidez_centrada)
+    frecuencias = fftfreq(N, d=1/Fuestreo)
+
+    # Nos quedamos solo con la mitad positiva del espectro
+    frecuencias_pos = frecuencias[:N//2]
+    potencia_pos = np.abs(X_fft[:N//2]) ** 2  # Espectro de potencia
+
+    # Evitar división por cero en la primera posición (frecuencia cero)
+    with np.errstate(divide='ignore'):
+        periodos = 1 / frecuencias_pos
+
+    # 3. Graficar la serie temporal original y el espectro de frecuencias
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8))
+    
+    # Gráfico 1: Serie Temporal de Turbidez
+    ax1.plot(df.index, df[CONDUCTIVIDAD], color='teal', alpha=0.8)
+    ax1.set_title("Serie Temporal Original de Conductividad (2019 - 2021)")
+    ax1.set_ylabel("Conductividad")
+    ax1.grid(True, linestyle='--')
+
+    # Gráfico 2: Periodograma (Zoom a periodos de entre 2 y 400 días)
+    # Esto ayuda a visualizar ciclos semanales, mensuales o anuales claramente
+    mascara_zoom = (periodos >= 2) & (periodos <= 400)
+    
+    ax2.plot(periodos[mascara_zoom], potencia_pos[mascara_zoom], color='crimson', linewidth=2)
+    ax2.set_title("Periodograma: Detección de Ciclos de Conductividad")
+    ax2.set_xlabel("Periodo del ciclo (Días)")
+    ax2.set_ylabel("Potencia / Fuerza del patrón")
+    ax2.grid(True, linestyle='--')
+    
+
+    plt.tight_layout()
+    plt.show()
+
+except FileNotFoundError:
+    print(f"❌ Error: No se encontró ningún archivo en la ruta: '{RUTA_CSV}'")
+except KeyError:
+    print(f"❌ Error: Verifica los nombres de las columnas. Tus columnas actuales son: {list(df.columns)}")
+```
+
+
+# Análisis de serie temporal de ph, aplicación transformada de Fourier
+
+```{python}
+#| eval: true
+#| echo: false
+#| warning: false
+#| message: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.fft import fft, fftfreq
+
+
+RUTA_CSV = "Output/Datos para series temporales/ph-2017-2021.csv" 
+
+COLUMNA_FECHA = "Fecha"        
+PH = "ph"   
+
+
+try:
+    # 1. Cargar y preparar los datos
+    df = pd.read_csv(RUTA_CSV)
+    
+    # Convertir fechas y ordenar
+    df[COLUMNA_FECHA] = pd.to_datetime(df[COLUMNA_FECHA])
+    df = df.sort_values(by=COLUMNA_FECHA).dropna(subset=[PH])
+    
+    # IMPORTANTE para Fourier: Asegurar un registro diario continuo (sin saltos)
+    df = df.set_index(COLUMNA_FECHA).resample('D').mean()
+    
+    # Rellenar valores faltantes (si los hay) usando interpolación lineal
+    df[PH] = df[PH].interpolate(method='linear')
+    
+    # Restar la media para eliminar el componente continuo (frecuencia 0)
+    turbidez_centrada = df[PH].values - df[PH].mean()
+
+    # 2. Aplicar la Transformada Rápida de Fourier (FFT)
+    N = len(turbidez_centrada)
+    Fuestreo = 1  # 1 muestra por día
+    
+    X_fft = fft(turbidez_centrada)
+    frecuencias = fftfreq(N, d=1/Fuestreo)
+
+    # Nos quedamos solo con la mitad positiva del espectro
+    frecuencias_pos = frecuencias[:N//2]
+    potencia_pos = np.abs(X_fft[:N//2]) ** 2  # Espectro de potencia
+
+    # Evitar división por cero en la primera posición (frecuencia cero)
+    with np.errstate(divide='ignore'):
+        periodos = 1 / frecuencias_pos
+
+    # 3. Graficar la serie temporal original y el espectro de frecuencias
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8))
+    
+    # Gráfico 1: Serie Temporal de pH
+    ax1.plot(df.index, df[PH], color='teal', alpha=0.8)
+    ax1.set_title("Serie Temporal Original de pH (2019 - 2021)")
+    ax1.set_ylabel("pH")
+    ax1.grid(True, linestyle='--')
+
+    # Gráfico 2: Periodograma (Zoom a periodos de entre 2 y 400 días)
+    # Esto ayuda a visualizar ciclos semanales, mensuales o anuales claramente
+    mascara_zoom = (periodos >= 2) & (periodos <= 400)
+    
+    ax2.plot(periodos[mascara_zoom], potencia_pos[mascara_zoom], color='crimson', linewidth=2)
+    ax2.set_title("Periodograma: Detección de Ciclos de pH")
+    ax2.set_xlabel("Periodo del ciclo (Días)")
+    ax2.set_ylabel("Potencia / Fuerza del patrón")
+    ax2.grid(True, linestyle='--')
+    
+
+    plt.tight_layout()
+    plt.show()
+
+except FileNotFoundError:
+    print(f"❌ Error: No se encontró ningún archivo en la ruta: '{RUTA_CSV}'")
+except KeyError:
+    print(f"❌ Error: Verifica los nombres de las columnas. Tus columnas actuales son: {list(df.columns)}")
+```
